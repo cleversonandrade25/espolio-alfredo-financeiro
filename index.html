@@ -76,6 +76,7 @@
             border-radius: 5px;
             cursor: pointer;
             width: 100%;
+            margin-bottom: 10px;
         }
 
         .login-form button:hover {
@@ -88,6 +89,24 @@
             font-weight: 600;
             color: #495057;
             text-align: left;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            text-align: left;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+            margin-right: 10px;
+            margin-bottom: 0;
+        }
+
+        .checkbox-group label {
+            margin-bottom: 0;
+            font-weight: normal;
         }
 
         .main-content {
@@ -387,6 +406,20 @@
         .logout-btn:hover {
             background: #c82333;
         }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
     </style>
 </head>
 <body>
@@ -405,7 +438,13 @@
                 <label for="tokenInput">Token GitHub:</label>
                 <input type="password" id="tokenInput" placeholder="Digite o token do GitHub">
                 
+                <div class="checkbox-group">
+                    <input type="checkbox" id="rememberCredentials">
+                    <label for="rememberCredentials">Lembrar senha e token neste dispositivo</label>
+                </div>
+                
                 <button onclick="checkAccess()">Acessar Sistema</button>
+                <button class="btn-secondary" onclick="clearSavedCredentials()" style="background: #6c757d;">Limpar Dados Salvos</button>
                 <div class="error-message" id="errorMessage">Credenciais incorretas! Acesso negado.</div>
             </div>
         </div>
@@ -616,12 +655,60 @@
         const REPO_NAME = "espolio-alfredo-financeiro";
         const DATA_FILE = "dados_financeiros.json";
 
+        // Função para salvar credenciais no localStorage
+        function saveCredentials() {
+            const remember = document.getElementById('rememberCredentials').checked;
+            if (remember) {
+                const password = document.getElementById('passwordInput').value;
+                const token = document.getElementById('tokenInput').value;
+                
+                localStorage.setItem('savedPassword', password);
+                localStorage.setItem('savedToken', token);
+                localStorage.setItem('rememberCredentials', 'true');
+            } else {
+                localStorage.removeItem('savedPassword');
+                localStorage.removeItem('savedToken');
+                localStorage.removeItem('rememberCredentials');
+            }
+        }
+
+        // Função para carregar credenciais salvas
+        function loadSavedCredentials() {
+            const remember = localStorage.getItem('rememberCredentials');
+            if (remember === 'true') {
+                const savedPassword = localStorage.getItem('savedPassword');
+                const savedToken = localStorage.getItem('savedToken');
+                
+                if (savedPassword) {
+                    document.getElementById('passwordInput').value = savedPassword;
+                }
+                if (savedToken) {
+                    document.getElementById('tokenInput').value = savedToken;
+                }
+                document.getElementById('rememberCredentials').checked = true;
+            }
+        }
+
+        // Função para limpar credenciais salvas
+        function clearSavedCredentials() {
+            localStorage.removeItem('savedPassword');
+            localStorage.removeItem('savedToken');
+            localStorage.removeItem('rememberCredentials');
+            
+            document.getElementById('passwordInput').value = '';
+            document.getElementById('tokenInput').value = '';
+            document.getElementById('rememberCredentials').checked = false;
+            
+            alert('Dados salvos foram limpos!');
+        }
+
         function checkAccess() {
             const senha = document.getElementById('passwordInput').value;
             const token = document.getElementById('tokenInput').value;
             
             if (senha === senhaAcesso && token) {
                 githubToken = token;
+                saveCredentials(); // Salvar credenciais se checkbox estiver marcado
                 document.getElementById('accessControl').style.display = 'none';
                 document.getElementById('mainContent').style.display = 'block';
                 carregarDadosDoGitHub();
@@ -629,20 +716,28 @@
                 document.getElementById('errorMessage').style.display = 'block';
                 document.getElementById('errorMessage').textContent = 
                     senha !== senhaAcesso ? 'Senha incorreta!' : 'Token GitHub é obrigatório!';
-                document.getElementById('passwordInput').value = '';
-                document.getElementById('tokenInput').value = '';
+                if (senha !== senhaAcesso) {
+                    document.getElementById('passwordInput').value = '';
+                }
+                if (!token) {
+                    document.getElementById('tokenInput').value = '';
+                }
             }
         }
 
         function logout() {
             if (confirm('Tem certeza que deseja sair do sistema?')) {
+                // Salvar credenciais antes de sair (se checkbox estiver marcado)
+                saveCredentials();
+                
                 githubToken = '';
                 movimentacoes = [];
                 document.getElementById('mainContent').style.display = 'none';
                 document.getElementById('accessControl').style.display = 'block';
-                document.getElementById('passwordInput').value = '';
-                document.getElementById('tokenInput').value = '';
                 document.getElementById('errorMessage').style.display = 'none';
+                
+                // Recarregar credenciais salvas
+                loadSavedCredentials();
             }
         }
 
@@ -1070,9 +1165,10 @@
             if (movimentacoes.length > 0 && githubToken) {
                 salvarDadosNoGitHub();
             }
+            saveCredentials();
         });
 
-        // Inicializar datas com valores padrão
+        // Inicializar datas com valores padrão e carregar credenciais salvas
         document.addEventListener('DOMContentLoaded', function() {
             const hoje = new Date();
             const ano = hoje.getFullYear();
@@ -1085,6 +1181,9 @@
             document.getElementById('dataMovimentacao').value = dataHoje;
             document.getElementById('dataInicial').value = primeiroDiaMes;
             document.getElementById('dataFinal').value = dataHoje;
+            
+            // Carregar credenciais salvas
+            loadSavedCredentials();
         });
 
         // Fechar modal clicando fora
